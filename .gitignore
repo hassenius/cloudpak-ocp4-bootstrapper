@@ -1,0 +1,3 @@
+# Ignore the files that is likely to contain sensitive information like pull secrets and passwords
+/config.yaml
+/install-config.yaml

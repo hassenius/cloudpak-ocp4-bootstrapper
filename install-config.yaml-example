@@ -1,0 +1,52 @@
+apiVersion: v1
+
+baseDomain: <Insert your own domain>
+metadata:
+  name: <cluster_name> # Leave this as is
+
+compute:
+- hyperthreading: Enabled
+  name: worker
+  platform:
+    aws:
+      type: m5.2xlarge
+      rootVolume:
+        size: 128
+      zones:
+      - eu-west-1a
+      - eu-west-1b
+      - eu-west-1c
+  replicas: 3
+
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  platform:
+    aws:
+      type: m5.xlarge
+      rootVolume:
+        size: 128
+      zones:
+      - eu-west-1a
+      - eu-west-1b
+      - eu-west-1c
+  replicas: 3
+
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  machineCIDR: 10.0.0.0/16
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+
+platform:
+  aws:
+    region: eu-west-1
+    userTags:
+      insert: "your own tags" 
+
+pullSecret: <insert your own pull secret?
+sshKey: |
+  <insert your own public ssh keys - as many as you like>

@@ -1,0 +1,37 @@
+## This entry is only for this installation flow
+installer_image: my-private-registry.com/ibmcom/icp-inception:3.2.2
+
+## The rest is the normal config.yaml passed into the inception installer
+
+#### NOTE 
+#### We do not need to provide a cluster_nodes section. 
+#### This will be generated for us
+
+storage_class: gp2
+
+# Private registry stuff for the CloudPak images
+private_registry_enabled: true
+private_registry_server: my-private-registry.com
+image_repo: my-private-registry.com/ibmcom-amd64
+docker_username: <my_username>
+docker_password: <my_secret_password>
+
+# Enable MCM
+mcm_enabled: true
+
+# Login details for the MCM Dashboard
+default_admin_password: <my_secret_password>
+default_admin_user: kubeadmin
+
+# Enable HA mode for MCM ETCD
+multicluster-hub:
+  global:
+    replicas: 3
+  etcd:
+    haMode: true
+    persistence: true
+    storageclassName: gp2
+  core:
+    apiserver:
+      etcd:
+        haMode: true
