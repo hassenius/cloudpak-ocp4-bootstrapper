@@ -5,29 +5,61 @@ from kubernetes import config as kubeconf
 from kubernetes.client.rest import ApiException
 from base64 import b64encode
 
-import os, json, yaml
+import os, json, yaml, sys, argparse
 
 JOB_NAME = "mcm-installer"
-CONFIG_FILE="./config.yaml"
+CONFIG_FILE="./config.yaml" # Defaul config file if no input provided
 
-# Read configurations from the yaml file if it exists
-# Load config from config file if provided
-if os.stat(CONFIG_FILE).st_size == 0:
-  config = {}
-else:
-  with open(CONFIG_FILE, 'r') as stream:
+# Parse the arguments
+parser = argparse.ArgumentParser(description='Create install job for IBM Cloud Pak.')
+parser.add_argument('-f', dest='conf_file',
+                    help='file to parse as config.yaml. "-" to read stdin kubectl style')
+parser.add_argument('-d', dest='working_directory',
+                    help='Working directory. Useful when saving copy of config.yaml')            
+parser.add_argument('-s', dest='save_copy', action='store_true')
+
+args = parser.parse_args()
+
+SAVE_COPY=args.save_copy
+WDIR=args.working_directory
+conf_file=args.conf_file
+
+# Accept getting config.yaml passed or piped to us kubectl style
+if conf_file == '-':
     try:
-        config = yaml.safe_load(stream)
-    except yaml.YAMLError as e:
-        print "Problems parsing config.yaml"
+        config = yaml.safe_load(sys.stdin) 
+    except yaml.YAMLERROR as e:
+        print "Problems parsing config from stdin"
         print(e)
+else:
+    if not os.path.exists(conf_file):
+        print "Could not find config file '%s'" % conf_file
+        exit(1)
+    if os.stat(conf_file).st_size == 0:
+      print "Warning: config from %s file is empty" % conf_file
+    else:
+      with open(CONFIG_FILE, 'r') as stream:
+        try:
+            config = yaml.safe_load(stream)
+        except yaml.YAMLError as e:
+            print "Problems parsing %s" % conf_file
+            print(e)
 
 
 # Allow any override from os environment
 for k in os.environ:
     if k[:3] == 'MC_':
         config[k[3:]] = os.environ[k]
-        
+
+# Save the file for future reference if requested
+if SAVE_COPY:
+    if WDIR:
+        f=WDIR+"/config.yaml-used"
+    else:
+        f="config.yaml-used"
+    with open(f, 'w') as of:
+        yaml.safe_dump(config, of, explicit_start=True, default_flow_style = False)
+
 
 ## Construct the installation command
 def install_command():

@@ -1,15 +1,34 @@
 #!/usr/bin/env bash
-INSTALL_CONF_TEMPL=${2:-"install-config.yaml"}
+function show_help() {
+  echo "Usage"
+  echo "$0 -n <cluster_name> [-t openshift-install.yaml-template] [-c config.yaml-template] [-s]"
+  
+}
 
-if [[ -z ${CLUSTER_NAME} ]]; then
-  # We don't have a cluster name. Take it from input
-  CLUSTER_NAME=$1
-fi
+while getopts "h?n:t:c:s" opt; do
+    case "$opt" in
+    h|\?)
+        show_help
+        exit 0
+        ;;
+    n)
+        CLUSTER_NAME=$OPTARG
+        ;;
+    t)  
+        INSTALL_CONF_TEMPL=$OPTARG
+        ;;
+    c)  
+        CONFIG_YAML=$OPTARG
+        ;;
+    s)
+        SAVE_COPY=1
+    esac
+done
 
 # If we still don't have a cluster name we could generate a random name
 if [[ -z ${CLUSTER_NAME} ]]; then
-  echo "Please specify a cluster name."
-  echo "$0 <cluster_name> [template_file]"
+  echo "ERROR: Please specify a cluster name."
+  show_help
   exit 1
 fi
 
@@ -25,8 +44,15 @@ mkdir ${CLUSTER_NAME}
 # 
 # echo $install_conf 
 
+echo "Install conf ${INSTALL_CONF_TEMPL}"
+
 # Copy the template locally while updating cluster_name
-cat $INSTALL_CONF_TEMPL | sed 's/<cluster_name>/my-cluster/g' > ${CLUSTER_NAME}/install-config.yaml
+cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g" > ${CLUSTER_NAME}/install-config.yaml
+
+# If desired create a copy of the template
+if [[ ! -z ${SAVE_COPY} ]]; then
+  cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g" > ${CLUSTER_NAME}/install-config.yaml-backup
+fi
 
 # If we don't have openshift-install locally we need to get it
 if [[ ! $(which openshift-install) ]]; then
@@ -45,7 +71,7 @@ export KUBECONFIG=$(pwd)/${CLUSTER_NAME}/auth/kubeconfig
 # Some settings should fit here
 
 # Create the job that starts the inception installer
-python install-cp4mcm.py
+python install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$CLUSTER_NAME}
 
 # The python script could likely stream the logs if desired.
 # Alternatively we could use kubectl to stream the logs here
