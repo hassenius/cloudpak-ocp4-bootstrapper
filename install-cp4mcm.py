@@ -22,7 +22,10 @@ args = parser.parse_args()
 
 SAVE_COPY=args.save_copy
 WDIR=args.working_directory
-conf_file=args.conf_file
+if args.conf_file:
+    conf_file=args.conf_file
+else:
+    conf_file=CONFIG_FILE
 
 # Accept getting config.yaml passed or piped to us kubectl style
 if conf_file == '-':
@@ -38,13 +41,12 @@ else:
     if os.stat(conf_file).st_size == 0:
       print "Warning: config from %s file is empty" % conf_file
     else:
-      with open(CONFIG_FILE, 'r') as stream:
+      with open(conf_file, 'r') as stream:
         try:
             config = yaml.safe_load(stream)
         except yaml.YAMLError as e:
             print "Problems parsing %s" % conf_file
             print(e)
-
 
 # Allow any override from os environment
 for k in os.environ:
