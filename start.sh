@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 function show_help() {
   echo "Usage"
-  echo "$0 -n <cluster_name> [-t openshift-install.yaml-template] [-c config.yaml-template] [-s]"
+  echo "$0 -n <cluster_name> [-d <domain_name>] [-t openshift-install.yaml-template] [-c config.yaml-template] [-s]"
   
 }
 
-while getopts "h?n:t:c:s" opt; do
+while getopts "h?n:d:t:c:s" opt; do
     case "$opt" in
     h|\?)
         show_help
@@ -13,6 +13,9 @@ while getopts "h?n:t:c:s" opt; do
         ;;
     n)
         CLUSTER_NAME=$OPTARG
+        ;;
+    d)
+        DOMAIN_NAME=$OPTARG
         ;;
     t)  
         INSTALL_CONF_TEMPL=$OPTARG
@@ -33,27 +36,24 @@ if [[ -z ${CLUSTER_NAME} ]]; then
 fi
 
 
+if [[ -z ${INSTALL_CONF_TEMPL} ]]; then
+  INSTALL_CONF_TEMPL="./install-config.yaml"
+fi
 # Create a directory to keep all the cluster specific stuff in
 mkdir ${CLUSTER_NAME}
 
 
-## TODO: Could do a simple template format so we can substitute some secrets
-# install_conf=$(eval "cat <<$(printf '\x04\x04\x04') ;
-# $(cat ${INSTALL_CONF_TEMPL})
-# ")
-# 
-# echo $install_conf 
-
 echo "Install conf ${INSTALL_CONF_TEMPL}"
 
 # Copy the template locally while updating cluster_name
-cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g" > ${CLUSTER_NAME}/install-config.yaml
+cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${CLUSTER_NAME}/install-config.yaml
 
 # If desired create a copy of the template
 if [[ ! -z ${SAVE_COPY} ]]; then
-  cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g" > ${CLUSTER_NAME}/install-config.yaml-backup
+  cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${CLUSTER_NAME}/install-config.yaml-backup
 fi
 
+exit 0
 # If we don't have openshift-install locally we need to get it
 if [[ ! $(which openshift-install) ]]; then
   echo "In the future we'll install openshift-install for you, but for now get it yourself please"
