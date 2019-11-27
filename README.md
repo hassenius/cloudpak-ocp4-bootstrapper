@@ -38,14 +38,14 @@ To use this automated workflow you require the following
 
 The install-config.yaml is configured as specified here [https://docs.openshift.com/container-platform/4.2/installing/installing_aws/installing-aws-customizations.html](https://docs.openshift.com/container-platform/4.2/installing/installing_aws/installing-aws-customizations.html)
 
-The only exception is that this bootstrapper will update the cluster name before starting the installer
+The only exception is that this bootstrapper will update the cluster name and basedomain before starting the installer
 
 Here's an example `install-config.yaml`
 
 ```
 apiVersion: v1
 
-baseDomain: <insert_your_own>
+baseDomain: <domain_name> # You must leave this intact so script can replace 
 metadata:
   name: <cluster_name> # You must leave this intact so script can replace
 

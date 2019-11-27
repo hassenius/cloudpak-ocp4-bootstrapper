@@ -1,8 +1,8 @@
 apiVersion: v1
 
-baseDomain: <Insert your own domain>
+baseDomain: <domain_name> # You must leave this intact so script can replace
 metadata:
-  name: <cluster_name> # Leave this as is
+  name: <cluster_name> # You must leave this intact so script can replace
 
 compute:
 - hyperthreading: Enabled
