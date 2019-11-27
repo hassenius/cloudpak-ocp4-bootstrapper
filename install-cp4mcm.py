@@ -16,7 +16,7 @@ parser.add_argument('-f', dest='conf_file',
                     help='file to parse as config.yaml. "-" to read stdin kubectl style')
 parser.add_argument('-d', dest='working_directory',
                     help='Working directory. Useful when saving copy of config.yaml')            
-parser.add_argument('-s', dest='save_copy', action='store_true')
+parser.add_argument('-s', dest='save_copy', action='store_true', help='Save copy of config.yaml used')
 
 args = parser.parse_args()
 
