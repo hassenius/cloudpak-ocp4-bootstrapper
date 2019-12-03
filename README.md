@@ -21,15 +21,16 @@ To use this automated workflow you require the following
   1. Clone this repository
   2. Create a `install-config.yaml` as template for the `openshift-install` tool (instructions below)
   3. Create a `config.yaml` for the CloudPak installer
-  4. Run `./start.sh <cluster_name> [template_file]`
+  4. Run `./start.sh -n <cluster_name> -d <domain>  [template_file]`
       Where `<cluster_name>` is the name of the cluster to create, and `template_file` is optionally which template to use in the case you have multiple templates, or the file is called something else than `./install-config.yaml`
 
   ### What happens next?
   
   The script will 
-  - create a directory named the same as the `<cluster_name>` you specified 
-  - copy the `install-config.yaml` you specified there while updating the cluster name
+  - create a directory structure under `./clusters` named the same as the `<domain>/<cluster_name>` you specified 
+  - copy the `install-config.yaml` you specified there while updating the cluster name and domain name
   - start `openshift-install`
+  - create valid wildcard certificates for `*.apps.<domain>` using letsencrypt
   - create a kubernetes job for the CloudPak installer with the config specified in config.yaml
 
   
@@ -109,14 +110,15 @@ See Openshift documentation for more information
 The `config.yaml` file is provided to the IBM CloudPak installer as is.
 The only differences are:
 1. You do not have to provide named dedicated nodes for the installer. The installer auto-detects this and populates the relevant sections
-2. You must also specify an `installer_image` key for the CloudPak installer. It is assumed that the installer (i.e. `icp-inception`) is located on the same private registry as the rest of the CloudPak images, so the same authentication information will be reused.
+2. You must also specify an `depl.installer_image` key for the CloudPak installer. It is assumed that the installer (i.e. `icp-inception`) is located on the same private registry as the rest of the CloudPak images, so the same authentication information will be reused.
 3. Any environment environment variable named `MC_` will be added as a key, overwriting or adding to the existing `config.yaml`. This follows a similar model to Terraforms `TF_VAR_` environment variables.
 
 
 Example config.yaml
 ```
 ## This entry is only for this installation flow
-installer_image: my-private-registry.com/ibmcom/icp-inception:3.2.2
+depl:
+  installer_image: my-private-registry.com/ibmcom/icp-inception:3.2.2
 
 ## The rest is the normal config.yaml passed into the inception installer
 
