@@ -356,7 +356,7 @@ def main():
     
     # Create a job object with client-python API. 
     job = create_job_object(
-            container_image=config['installer_image'],
+            container_image=config['depl']['installer_image'],
             image_pull_secret="installer-pull-secret",
             service_account_name="mcm-deploy"
           )

@@ -119,6 +119,7 @@ Example config.yaml
 ## This entry is only for this installation flow
 depl:
   installer_image: my-private-registry.com/ibmcom/icp-inception:3.2.2
+  nodes: 3 # optional, how many nodes to dedicate to the cloud pak. Default: 3
 
 ## The rest is the normal config.yaml passed into the inception installer
 
