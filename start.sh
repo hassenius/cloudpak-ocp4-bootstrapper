@@ -40,10 +40,10 @@ if [[ -z ${INSTALL_CONF_TEMPL} ]]; then
   INSTALL_CONF_TEMPL="./install-config.yaml"
 fi
 # Create a directory to keep all the cluster specific stuff in
-mkdir ${CLUSTER_NAME}
+mkdir clusters/${CLUSTER_NAME}
 
 
-echo "Install conf ${INSTALL_CONF_TEMPL}"
+echo "Install config ${INSTALL_CONF_TEMPL}"
 
 # Copy the template locally while updating cluster_name
 cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${CLUSTER_NAME}/install-config.yaml
@@ -60,16 +60,16 @@ if [[ ! $(which openshift-install) ]]; then
 fi
 
 # Create cluster
-openshift-install create cluster --dir ${CLUSTER_NAME}
+openshift-install create cluster --dir clusters/${CLUSTER_NAME}
 
 ## Now that the cluster is installed we can load the cloudpak
 
 # First set the kubeconfig so we can communicate with the cluster
-export KUBECONFIG=$(pwd)/${CLUSTER_NAME}/auth/kubeconfig
+export KUBECONFIG=$(pwd)/clusters/${CLUSTER_NAME}/auth/kubeconfig
 
 # Create proper certificates
 echo "Generating valid certificates using acme.sh"
-CERT_DIR="${CLUSTER_NAME}/certs"
+CERT_DIR="clusters/${CLUSTER_NAME}/certs"
 mkdir -p ${CERT_DIR}
 export LE_API=$(oc whoami --show-server | cut -f 2 -d ':' | cut -f 3 -d '/' | sed 's/-api././')
 export LE_WILDCARD=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
@@ -82,7 +82,7 @@ oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --
 
 
 # Create the job that starts the inception installer
-python install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$CLUSTER_NAME}
+python install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+clusters/$CLUSTER_NAME}
 
 # The python script could likely stream the logs if desired.
 # Alternatively we could use kubectl to stream the logs here
