@@ -9,6 +9,7 @@ import os, json, yaml, sys, argparse
 
 JOB_NAME = "mcm-installer"
 CONFIG_FILE="./config.yaml" # Defaul config file if no input provided
+DEFAULT_NODES=3
 
 # Parse the arguments
 parser = argparse.ArgumentParser(description='Create install job for IBM Cloud Pak.')
@@ -17,6 +18,8 @@ parser.add_argument('-f', dest='conf_file',
 parser.add_argument('-d', dest='working_directory',
                     help='Working directory. Useful when saving copy of config.yaml')            
 parser.add_argument('-s', dest='save_copy', action='store_true', help='Save copy of config.yaml used')
+parser.add_argument('-n', dest='nodes',
+                    help='Number of nodes to dedicate for the cloud pak. Default: %i' % DEFAULT_NODES)
 
 args = parser.parse_args()
 
@@ -26,6 +29,7 @@ if args.conf_file:
     conf_file=args.conf_file
 else:
     conf_file=CONFIG_FILE
+    
 
 # Accept getting config.yaml passed or piped to us kubectl style
 if conf_file == '-':
@@ -53,14 +57,14 @@ for k in os.environ:
     if k[:3] == 'MC_':
         config[k[3:]] = os.environ[k]
 
-# Save the file for future reference if requested
-if SAVE_COPY:
-    if WDIR:
-        f=WDIR+"/config.yaml-used"
-    else:
-        f="config.yaml-used"
-    with open(f, 'w') as of:
-        yaml.safe_dump(config, of, explicit_start=True, default_flow_style = False)
+# Set number of dedicated nodes to use.
+config['depl'] = {
+    'nodes': 
+        # Prefer command line input
+        (args.nodes and args.nodes) or 
+        # Use DEFAULT_NODE if not provided through config file or environment variable
+        (not 'nodes' in config['depl'] and DEFAULT_NODES) or config['depl']['nodes']
+    }
 
 
 ## Construct the installation command
@@ -72,7 +76,7 @@ def install_command():
     
     # Append the node map
     inst.append('-e')
-    inst.append(str(get_dedicated_nodes()))
+    inst.append(str(get_dedicated_nodes(num_nodes=config['depl']['nodes'])))
     
     # Append the setting from config.yaml OS environment
     inst.append('-e')
@@ -112,8 +116,8 @@ def get_node_names(num_nodes=3,prefer_multizone=True):
             # TODO: Check for label failure-domain.beta.kubernetes.io/zone and attempt to select from different azs
             candidates.append(n['metadata']['name'])
     
-    # TODO: validate that we got enough nodes, and only return as many as requested
-    return candidates
+    # Return the requested number of nodes
+    return candidates[:num_nodes]
     
     
 def create_job_object(container_image, image_pull_secret=None,service_account_name=None):
@@ -320,6 +324,18 @@ def main():
     # default location.
     kubeconf.load_kube_config()
     
+    # Save the file for future reference if requested
+    if SAVE_COPY:
+        if WDIR:
+            f=WDIR+"/config.yaml-used"
+        else:
+            f="config.yaml-used"
+        with open(f, 'w') as of:
+            yaml.safe_dump(config, of, explicit_start=True, default_flow_style = False)
+            # Dump the node stuff as well
+            yaml.safe_dump(get_dedicated_nodes(num_nodes=config['depl']['nodes']), of, explicit_start=False, default_flow_style = False )
+
+
     if config['private_registry_enabled']:
         print "Creating image pull secret for %s" % config['private_registry_server']
         create_pull_secret(
