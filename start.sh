@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 function show_help() {
   echo "Usage"
-  echo "$0 -n <cluster_name> [-d <domain_name>] [-t openshift-install.yaml-template] [-c config.yaml-template] [-s]"
+  echo "$0 -n <cluster_name> [-d <domain_name>] [-w work_dir] [-t openshift-install.yaml-template] [-c config.yaml-template] [-s]"
   
 }
 
-while getopts "h?n:d:t:c:s" opt; do
+while getopts "h?n:d:t:c:sw:" opt; do
     case "$opt" in
     h|\?)
         show_help
@@ -25,6 +25,10 @@ while getopts "h?n:d:t:c:s" opt; do
         ;;
     s)
         SAVE_COPY=1
+        ;;
+    w)
+        WORK_DIR=$OPTARG
+        ;;
     esac
 done
 
@@ -35,22 +39,25 @@ if [[ -z ${CLUSTER_NAME} ]]; then
   exit 1
 fi
 
+if [[ -z ${WORK_DIR} ]]; then
+  WORK_DIR="clusters/${DOMAIN}/${CLUSTER_NAME}"
+fi
 
 if [[ -z ${INSTALL_CONF_TEMPL} ]]; then
   INSTALL_CONF_TEMPL="./install-config.yaml"
 fi
 # Create a directory to keep all the cluster specific stuff in
-mkdir clusters/${CLUSTER_NAME}
+mkdir -p ${WORK_DIR}
 
 
 echo "Install config ${INSTALL_CONF_TEMPL}"
 
 # Copy the template locally while updating cluster_name
-cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${CLUSTER_NAME}/install-config.yaml
+cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${WORK_DIR}/install-config.yaml
 
 # If desired create a copy of the template
 if [[ ! -z ${SAVE_COPY} ]]; then
-  cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${CLUSTER_NAME}/install-config.yaml-backup
+  cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${WORK_DIR}/install-config.yaml-backup
 fi
 
 # If we don't have openshift-install locally we need to get it
@@ -60,16 +67,16 @@ if [[ ! $(which openshift-install) ]]; then
 fi
 
 # Create cluster
-openshift-install create cluster --dir clusters/${CLUSTER_NAME}
+openshift-install create cluster --dir ${WORK_DIR}
 
-## Now that the cluster is installed we can load the cloudpak
+## Now that the cluster is installed we can work with the cluster
 
-# First set the kubeconfig so we can communicate with the cluster
-export KUBECONFIG=$(pwd)/clusters/${CLUSTER_NAME}/auth/kubeconfig
+# First set the kubeconfig absolute path so we can communicate with the cluster
+export KUBECONFIG=$($(type -p greadlink readlink | head -1) -f ${WORK_DIR}/auth/kubeconfig)
 
 # Create proper certificates
 echo "Generating valid certificates using acme.sh"
-CERT_DIR="clusters/${CLUSTER_NAME}/certs"
+CERT_DIR="${WORK_DIR}/certs"
 mkdir -p ${CERT_DIR}
 export LE_API=$(oc whoami --show-server | cut -f 2 -d ':' | cut -f 3 -d '/' | sed 's/-api././')
 export LE_WILDCARD=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
@@ -82,7 +89,7 @@ oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --
 
 
 # Create the job that starts the inception installer
-python install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+clusters/$CLUSTER_NAME}
+python install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$WORK_DIR}
 
 # The python script could likely stream the logs if desired.
 # Alternatively we could use kubectl to stream the logs here
