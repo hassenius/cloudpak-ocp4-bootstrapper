@@ -94,5 +94,6 @@ python install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SA
 # The python script could likely stream the logs if desired.
 # Alternatively we could use kubectl to stream the logs here
 echo "The install job should be running now."
+echo "To access your cluster run 'export KUBECONFIG=${KUBECONFIG}'"
 echo "Check status with kubectl -n kube-system get jobs -l app=mcm-installer"
 echo "To stream installer logs do kubectl -n kube-system logs $(kubectl -n kube-system get pods -l app=mcm-installer -o jsonpath='{.items[].metadata.name}')"
