@@ -4,6 +4,7 @@ from kubernetes import client
 from kubernetes import config as kubeconf
 from kubernetes.client.rest import ApiException
 from base64 import b64encode
+import uuid
 
 import os, json, yaml, sys, argparse
 
@@ -58,14 +59,12 @@ for k in os.environ:
         config[k[3:]] = os.environ[k]
 
 # Set number of dedicated nodes to use.
-config['depl'] = {
-    'nodes': 
-        # Prefer command line input
-        (args.nodes and args.nodes) or 
-        # Use DEFAULT_NODE if not provided through config file or environment variable
-        (not 'nodes' in config['depl'] and DEFAULT_NODES) or config['depl']['nodes']
-    }
+# Use DEFAULT_NODE if not provided through config file or environment variable
+config['depl']['nodes'] = (args.nodes and args.nodes) or (not 'nodes' in config['depl'] and DEFAULT_NODES) or config['depl']['nodes']
 
+# Generate a random admin password if none is set
+if not 'default_admin_password' in config:
+    config['default_admin_password'] = str(uuid.uuid1().hex)
 
 ## Construct the installation command
 def install_command():

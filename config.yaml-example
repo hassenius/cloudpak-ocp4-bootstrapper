@@ -23,6 +23,7 @@ docker_password: <my_secret_password>
 mcm_enabled: true
 
 # Login details for the MCM Dashboard
+## a random default_admin_password will be generated if not specified
 default_admin_password: <my_secret_password>
 default_admin_user: kubeadmin
 

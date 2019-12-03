@@ -40,7 +40,7 @@ if [[ -z ${CLUSTER_NAME} ]]; then
 fi
 
 if [[ -z ${WORK_DIR} ]]; then
-  WORK_DIR="clusters/${DOMAIN}/${CLUSTER_NAME}"
+  WORK_DIR="clusters/${DOMAIN_NAME}/${CLUSTER_NAME}"
 fi
 
 if [[ -z ${INSTALL_CONF_TEMPL} ]]; then
@@ -97,3 +97,4 @@ echo "The install job should be running now."
 echo "To access your cluster run 'export KUBECONFIG=${KUBECONFIG}'"
 echo "Check status with kubectl -n kube-system get jobs -l app=mcm-installer"
 echo "To stream installer logs do kubectl -n kube-system logs $(kubectl -n kube-system get pods -l app=mcm-installer -o jsonpath='{.items[].metadata.name}')"
+grep -E "^default_admin_password" ${WORK_DIR}/config.yaml-used 2>/dev/null
