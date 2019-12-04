@@ -263,6 +263,21 @@ def create_pull_secret(name, namespace, server, username, password):
         # Catch normal programming errors
         raise e
 
+
+def set_kubeapi_url():
+    api = client.CoreV1Api()
+    
+    # Get the configmap
+    cm = api.read_namespaced_config_map('console-config', 'openshift-console')
+    
+    # Load the console config yaml
+    cc = yaml.safe_load(cm.data['console-config.yaml'])
+    
+    # Set the public API
+    config['external_kube_apiserver'] = cc['clusterInfo']['masterPublicURL']
+    
+    return True
+
 ## STUBS ##
 
 ## If we want to have the ability to wait for the pod to start successfully
@@ -322,6 +337,9 @@ def main():
     # utility. If no argument provided, the config will be loaded from
     # default location.
     kubeconf.load_kube_config()
+    
+    # Detect and set the external api url
+    set_kubeapi_url()
     
     # Save the file for future reference if requested
     if SAVE_COPY:
