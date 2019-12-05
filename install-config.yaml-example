@@ -1,8 +1,8 @@
 apiVersion: v1
 
-baseDomain: <domain_name> # You must leave this intact so script can replace
+baseDomain: <domain_name> # You must leave this intact (do not change this value) so script can replace
 metadata:
-  name: <cluster_name> # You must leave this intact so script can replace
+  name: <cluster_name> # You must leave this intact (do not change this value) so script can replace
 
 compute:
 - hyperthreading: Enabled
@@ -45,7 +45,8 @@ platform:
   aws:
     region: eu-west-1
     userTags:
-      insert: "your own tags" 
+      owner: "smith" 
+      team: "myteam" 
 
 pullSecret: <insert your own pull secret?
 sshKey: |

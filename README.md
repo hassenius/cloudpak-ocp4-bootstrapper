@@ -14,7 +14,9 @@ To use this automated workflow you require the following
   * CloudPak available from private registry
   * `kubectl` cli tool installed
   * python with kubernetes client library
-
+    * python 2.7
+    * `pip install kubernetes`
+    * `pip install requests`
   
   ## How to use
   
@@ -23,6 +25,11 @@ To use this automated workflow you require the following
   3. Create a `config.yaml` for the CloudPak installer
   4. Run `./start.sh -n <cluster_name> -d <domain>  [template_file]`
       Where `<cluster_name>` is the name of the cluster to create, and `template_file` is optionally which template to use in the case you have multiple templates, or the file is called something else than `./install-config.yaml`
+
+  ## How to clean up
+
+  1. `cd ./cluster/<domain>/<cluster_name>`
+  2. `openshift-install destroy-cluster --dir=. --log-level=info`
 
   ### What happens next?
   
