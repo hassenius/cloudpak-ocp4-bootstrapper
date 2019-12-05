@@ -46,6 +46,10 @@ fi
 if [[ -z ${INSTALL_CONF_TEMPL} ]]; then
   INSTALL_CONF_TEMPL="./install-config.yaml"
 fi
+
+# Set current script dir
+SCRIPT_DIR="$(dirname "$($(type -p greadlink readlink | head -1) -f  "$BASH_SOURCE")")"
+
 # Create a directory to keep all the cluster specific stuff in
 mkdir -p ${WORK_DIR}
 
@@ -80,16 +84,16 @@ CERT_DIR="${WORK_DIR}/certs"
 mkdir -p ${CERT_DIR}
 export LE_API=$(oc whoami --show-server | cut -f 2 -d ':' | cut -f 3 -d '/' | sed 's/-api././')
 export LE_WILDCARD=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
-acme.sh/acme.sh --issue -d ${LE_API} -d *.${LE_WILDCARD} --dns dns_aws
+${SCRIPT_DIR}/acme.sh/acme.sh --issue -d ${LE_API} -d *.${LE_WILDCARD} --dns dns_aws
 
-acme.sh/acme.sh --install-cert -d ${LE_API} -d *.${LE_WILDCARD} --cert-file ${CERT_DIR}/cert.pem --key-file ${CERT_DIR}/key.pem --fullchain-file ${CERT_DIR}/fullchain.pem --ca-file ${CERT_DIR}/ca.cer
+${SCRIPT_DIR}/acme.sh/acme.sh --install-cert -d ${LE_API} -d *.${LE_WILDCARD} --cert-file ${CERT_DIR}/cert.pem --key-file ${CERT_DIR}/key.pem --fullchain-file ${CERT_DIR}/fullchain.pem --ca-file ${CERT_DIR}/ca.cer
 
 oc create secret tls router-certs --cert=${CERT_DIR}/fullchain.pem --key=${CERT_DIR}/key.pem -n openshift-ingress
 oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch='{"spec": { "defaultCertificate": { "name": "router-certs" }}}'
 
 
 # Create the job that starts the inception installer
-python install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$WORK_DIR}
+python ${SCRIPT_DIR}/install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$WORK_DIR}
 
 # The python script could likely stream the logs if desired.
 # Alternatively we could use kubectl to stream the logs here
