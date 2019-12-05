@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 function show_help() {
   echo "Usage"
   echo "$0 -n <cluster_name> [-d <domain_name>] [-w work_dir] [-t openshift-install.yaml-template] [-c config.yaml-template] [-s]"
