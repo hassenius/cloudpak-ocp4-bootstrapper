@@ -37,20 +37,20 @@ if conf_file == '-':
     try:
         config = yaml.safe_load(sys.stdin) 
     except yaml.YAMLERROR as e:
-        print "Problems parsing config from stdin"
+        print("Problems parsing config from stdin")
         print(e)
 else:
     if not os.path.exists(conf_file):
-        print "Could not find config file '%s'" % conf_file
+        print("Could not find config file '%s'" % conf_file)
         exit(1)
     if os.stat(conf_file).st_size == 0:
-      print "Warning: config from %s file is empty" % conf_file
+      print("Warning: config from %s file is empty" % conf_file)
     else:
       with open(conf_file, 'r') as stream:
         try:
             config = yaml.safe_load(stream)
         except yaml.YAMLError as e:
-            print "Problems parsing %s" % conf_file
+            print("Problems parsing %s" % conf_file)
             print(e)
 
 # Allow any override from os environment
@@ -207,7 +207,7 @@ def create_cluster_role_binding(name, user_name, namespace, role="cluster-admin"
         
     except ApiException as e:
         if e.status == 409:
-            print "ClusterRolebinding already exists"
+            print("ClusterRolebinding already exists")
             # Already exists
             return name
         else:
@@ -354,7 +354,7 @@ def main():
 
 
     if config['private_registry_enabled']:
-        print "Creating image pull secret for %s" % config['private_registry_server']
+        print("Creating image pull secret for %s" % config['private_registry_server'])
         create_pull_secret(
             name="installer-pull-secret", 
             namespace="kube-system", 
@@ -362,7 +362,7 @@ def main():
             username=config['docker_username'], 
             password=config['docker_password']
         )
-        print "Done"
+        print("Done")
     
     # Make sure we have appropriate service account
     sa = create_service_account("mcm-deploy", "kube-system")
