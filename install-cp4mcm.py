@@ -225,7 +225,7 @@ def create_pull_secret(name, namespace, server, username, password):
             server:{
                 "username":username,
                 "password":password,
-                "auth":b64encode("%s:%s" % (username, password))
+                "auth":b64encode('%s:%s'.encode("utf-8") % (username.encode("utf-8"), password.encode("utf-8"))).decode("ascii")
             }
         }
     }
