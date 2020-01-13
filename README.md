@@ -8,6 +8,8 @@ To use this automated workflow you require the following
 * Openshift 4 Requirements:
   * `openshift-install` tool installed
   * OpenShift pull secret
+    - You can download or copy it directly from this link:
+     https://cloud.redhat.com/openshift/install/pull-secret
   * Cloud credentials
   * Domain in your control
 * IBM CloudPak requirements
