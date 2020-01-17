@@ -109,11 +109,18 @@ def get_node_names(num_nodes=3,prefer_multizone=True):
     
     # Get list of nodes
     candidates=[]
+    azs=[]
     nodes = api_client.list_node().to_dict()
     for n in nodes['items']:
+        az=n['metadata']['labels']['failure-domain.beta.kubernetes.io/zone']
         if 'node-role.kubernetes.io/worker' in n['metadata']['labels']:
-            # TODO: Check for label failure-domain.beta.kubernetes.io/zone and attempt to select from different azs
-            candidates.append(n['metadata']['name'])
+            if prefer_multizone and set(azs).intersection(set([az])):
+                # Skip the node if we already have a node from this AZ
+                continue
+            else:
+                azs.append(az)
+                candidates.append(n['metadata']['name'])
+
     
     # Return the requested number of nodes
     return candidates[:num_nodes]
