@@ -129,7 +129,16 @@ Example config.yaml
 depl:
   installer_image: my-private-registry.com/ibmcom/icp-inception:3.2.2
   nodes: 3 # optional, how many nodes to dedicate to the cloud pak. Default: 3
-
+  
+### Alternatively you can split out master and management 
+### nodes by specifying how many nodes of each type
+# depl:
+#   installer_image: my-private-registry.com/ibmcom/icp-inception:3.2.2
+#   nodes: 
+#     master: 3 
+#     management: 3
+  
+  
 ## The rest is the normal config.yaml passed into the inception installer
 
 #### NOTE 
