@@ -88,22 +88,46 @@ def install_command():
 
 ## Get dedicated nodes for the CloudPak and construct entry for config.yaml
 def get_dedicated_nodes(num_nodes=3,prefer_multizone=True):
-    
-    # Get list of nodes
-    nodes = get_node_names(num_nodes=num_nodes,prefer_multizone=prefer_multizone)
-    
     # Data structure
     n={}
     n["cluster_nodes"]               = {}
-    n["cluster_nodes"]["master"]     = nodes
-    n["cluster_nodes"]["proxy"]      = nodes
-    n["cluster_nodes"]["management"] = nodes
+    
+    # Determine if we have master,management and proxy converged on same node
+    try:
+        if type(config['depl']['nodes']) is dict:
+            converged_nodes=False
+        else:
+            converged_nodes=True
+    except(KeyError):
+        converged_nodes=True
+        
+
+    if converged_nodes:
+        # Get list of nodes
+        nodes = get_node_names(num_nodes=num_nodes,prefer_multizone=prefer_multizone)
+        
+        n["cluster_nodes"]["master"]     = nodes
+        n["cluster_nodes"]["proxy"]      = nodes
+        n["cluster_nodes"]["management"] = nodes
+    else:
+        # Node types are separated
+        used_nodes = []
+        
+        for nodetype in config['depl']['nodes']:
+            nodes = get_node_names(num_nodes=config['depl']['nodes'][nodetype],prefer_multizone=prefer_multizone,used_nodes=used_nodes)
+            n["cluster_nodes"][nodetype] = nodes
+            # For now we hard code proxy to coexist with master
+            if nodetype == 'master':
+                n["cluster_nodes"]['proxy'] = nodes
+            # Mark the nodes as dedicated so they are not reused
+            used_nodes=used_nodes+nodes
     
     return n
+
     
     
 ## STUB    
-def get_node_names(num_nodes=3,prefer_multizone=True):
+def get_node_names(num_nodes=3,prefer_multizone=True,used_nodes=[]):
     
     api_client = client.CoreV1Api()
     
@@ -116,6 +140,9 @@ def get_node_names(num_nodes=3,prefer_multizone=True):
         if 'node-role.kubernetes.io/worker' in n['metadata']['labels']:
             if prefer_multizone and set(azs).intersection(set([az])):
                 # Skip the node if we already have a node from this AZ
+                continue
+            elif n['metadata']['name'] in used_nodes:
+                # Skip nodes that are already dedicated for other roles
                 continue
             else:
                 azs.append(az)
