@@ -54,46 +54,60 @@ SCRIPT_DIR="$(dirname "$($(type -p greadlink readlink | head -1) -f  "$BASH_SOUR
 mkdir -p ${WORK_DIR}
 
 
-echo "Install config ${INSTALL_CONF_TEMPL}"
+## Functions to perform high level tasks
 
-# Copy the template locally while updating cluster_name
-cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${WORK_DIR}/install-config.yaml
+function install_openshift() {
+    echo "Install config ${INSTALL_CONF_TEMPL}"
 
-# If desired create a copy of the template
-if [[ ! -z ${SAVE_COPY} ]]; then
-  cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${WORK_DIR}/install-config.yaml-backup
-fi
+    # Copy the template locally while updating cluster_name
+    cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${WORK_DIR}/install-config.yaml
 
-# If we don't have openshift-install locally we need to get it
-if [[ ! $(which openshift-install) ]]; then
-  echo "In the future we'll install openshift-install for you, but for now get it yourself please"
-  exit 1
-fi
+    # If desired create a copy of the template
+    if [[ ! -z ${SAVE_COPY} ]]; then
+      cat $INSTALL_CONF_TEMPL | sed "s/<cluster_name>/$CLUSTER_NAME/g ; s/<domain_name>/$DOMAIN_NAME/g" > ${WORK_DIR}/install-config.yaml-backup
+    fi
 
-# Create cluster
-openshift-install create cluster --dir ${WORK_DIR}
+    # If we don't have openshift-install locally we need to get it
+    if [[ ! $(which openshift-install) ]]; then
+      echo "In the future we'll install openshift-install for you, but for now get it yourself please"
+      exit 1
+    fi
 
+    # Create cluster
+    openshift-install create cluster --dir ${WORK_DIR}
+    
+    
+}
+
+function create_certificate() {
+    # Create proper certificates
+    echo "Generating valid certificates using acme.sh"
+    CERT_DIR="${WORK_DIR}/certs"
+    mkdir -p ${CERT_DIR}
+    export LE_API=$(oc whoami --show-server | cut -f 2 -d ':' | cut -f 3 -d '/' | sed 's/-api././')
+    export LE_WILDCARD=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
+    ${SCRIPT_DIR}/acme.sh/acme.sh --issue -d ${LE_API} -d *.${LE_WILDCARD} --dns dns_aws
+
+    ${SCRIPT_DIR}/acme.sh/acme.sh --install-cert -d ${LE_API} -d *.${LE_WILDCARD} --cert-file ${CERT_DIR}/cert.pem --key-file ${CERT_DIR}/key.pem --fullchain-file ${CERT_DIR}/fullchain.pem --ca-file ${CERT_DIR}/ca.cer
+
+    oc create secret tls router-certs --cert=${CERT_DIR}/fullchain.pem --key=${CERT_DIR}/key.pem -n openshift-ingress
+    oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch='{"spec": { "defaultCertificate": { "name": "router-certs" }}}'
+}
+
+function install_cp4mcm() {
+    # Create the job that starts the inception installer
+    python ${SCRIPT_DIR}/install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$WORK_DIR}
+}
+
+
+## Perform the relevant actions
+install_openshift
 ## Now that the cluster is installed we can work with the cluster
 
 # First set the kubeconfig absolute path so we can communicate with the cluster
 export KUBECONFIG=$($(type -p greadlink readlink | head -1) -f ${WORK_DIR}/auth/kubeconfig)
-
-# Create proper certificates
-echo "Generating valid certificates using acme.sh"
-CERT_DIR="${WORK_DIR}/certs"
-mkdir -p ${CERT_DIR}
-export LE_API=$(oc whoami --show-server | cut -f 2 -d ':' | cut -f 3 -d '/' | sed 's/-api././')
-export LE_WILDCARD=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
-${SCRIPT_DIR}/acme.sh/acme.sh --issue -d ${LE_API} -d *.${LE_WILDCARD} --dns dns_aws
-
-${SCRIPT_DIR}/acme.sh/acme.sh --install-cert -d ${LE_API} -d *.${LE_WILDCARD} --cert-file ${CERT_DIR}/cert.pem --key-file ${CERT_DIR}/key.pem --fullchain-file ${CERT_DIR}/fullchain.pem --ca-file ${CERT_DIR}/ca.cer
-
-oc create secret tls router-certs --cert=${CERT_DIR}/fullchain.pem --key=${CERT_DIR}/key.pem -n openshift-ingress
-oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch='{"spec": { "defaultCertificate": { "name": "router-certs" }}}'
-
-
-# Create the job that starts the inception installer
-python ${SCRIPT_DIR}/install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$WORK_DIR}
+create_certificate
+install_cp4mcm
 
 # The python script could likely stream the logs if desired.
 # Alternatively we could use kubectl to stream the logs here
