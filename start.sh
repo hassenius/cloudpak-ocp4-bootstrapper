@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
+set -x
 function show_help() {
   echo "Usage"
-  echo "$0 -n <cluster_name> [-d <domain_name>] [-w work_dir] [-t openshift-install.yaml-template] [-c config.yaml-template] [-s]"
+  echo "$0 [-a create|skip|destroy] -n <cluster_name> [-d <domain_name>] [-w work_dir] [-t openshift-install.yaml-template] [-c config.yaml-template] [-r] [-s]"
   
 }
-
-while getopts "h?n:d:t:c:sw:" opt; do
+ACTION="create"
+while getopts "h?a:n:d:t:c:srw:m" opt; do
     case "$opt" in
     h|\?)
         show_help
         exit 0
+        ;;
+    a)
+        ACTION=$OPTARG
         ;;
     n)
         CLUSTER_NAME=$OPTARG
@@ -22,6 +26,13 @@ while getopts "h?n:d:t:c:sw:" opt; do
         ;;
     c)  
         CONFIG_YAML=$OPTARG
+        INSTALL_CP4MCM=true
+        ;;
+    m)
+        INSTALL_COMMON_SERVICES=true
+        ;;
+    r)
+        INSTALL_RHACM=true
         ;;
     s)
         SAVE_COPY=1
@@ -96,23 +107,73 @@ function create_certificate() {
 
 function install_cp4mcm() {
     # Create the job that starts the inception installer
-    python ${SCRIPT_DIR}/install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$WORK_DIR}
+    python3 ${SCRIPT_DIR}/install-cp4mcm.py ${CONFIG_YAML:+-f} ${CONFIG_YAML} ${SAVE_COPY:+-s} ${SAVE_COPY:+-d} ${SAVE_COPY:+$WORK_DIR}
 }
 
+function install_common_services() {
+  # Apply the baseline resources
+  oc apply -f common-services/01-operator-source.yaml
+  oc apply -f common-services/02-namespace.yaml
+  oc apply -f common-services/03-odlm.yaml
+  # If RHACM Is being installed, ensure that cert-manager config is adjusted
+  if [[ "${INSTALL_RHACM}" == "true" ]]; then
+    until oc -n ibm-common-services get OperandConfig common-service -o yaml; do
+      echo "Waiting for operandconfig to exist..."
+      sleep 5s
+    done
+    oc -n ibm-common-services get OperandConfig common-service -o json | \
+    jq 'del(.. | .certManager?)'  | \
+    oc apply -f -
+  fi
+  oc apply -f common-services/04-operand-request.yaml
+}
+
+function install_acm() {
+  # Assume that the RHACM deployer is installed in script dir
+  pushd ${SCRIPT_DIR}/deploy
+  ./start.sh --silent
+  popd
+}
 
 ## Perform the relevant actions
-install_openshift
+if [[ "${ACTION}" == "destroy" ]]; then
+  # Destroy the cluster and exit
+  echo "Destroying cluster"
+  openshift-install destroy cluster --dir ${WORK_DIR}
+  exit $?
+fi
+
+# Allow skip openshift install to use existing cluster
+if [[ "${ACTION}" == "create" ]]; then
+  if ! install_openshift; then
+    echo "Problems installing openshift, exiting"
+    exit 1
+  fi
+fi
+
 ## Now that the cluster is installed we can work with the cluster
 
 # First set the kubeconfig absolute path so we can communicate with the cluster
 export KUBECONFIG=$($(type -p greadlink readlink | head -1) -f ${WORK_DIR}/auth/kubeconfig)
 create_certificate
-install_cp4mcm
+
+if [[ "${INSTALL_RHACM}" == "true" ]]; then
+  install_acm
+fi
+
+if [[ "${INSTALL_COMMON_SERVICES}" == "true" ]]; then
+  install_common_services
+fi
+
+if [[ "${INSTALL_CP4MCM}" == "true" ]]; then
+  install_cp4mcm
+  echo "The install job should be running now."
+  echo "Check status with kubectl -n kube-system get jobs -l app=mcm-installer"
+  echo "To stream installer logs do kubectl -n kube-system logs $(kubectl -n kube-system get pods -l app=mcm-installer -o jsonpath='{.items[].metadata.name}')"
+  grep -E "^default_admin_password" ${WORK_DIR}/config.yaml-used 2>/dev/null
+fi
 
 # The python script could likely stream the logs if desired.
 # Alternatively we could use kubectl to stream the logs here
-echo "The install job should be running now."
+
 echo "To access your cluster run 'export KUBECONFIG=${KUBECONFIG}'"
-echo "Check status with kubectl -n kube-system get jobs -l app=mcm-installer"
-echo "To stream installer logs do kubectl -n kube-system logs $(kubectl -n kube-system get pods -l app=mcm-installer -o jsonpath='{.items[].metadata.name}')"
-grep -E "^default_admin_password" ${WORK_DIR}/config.yaml-used 2>/dev/null
